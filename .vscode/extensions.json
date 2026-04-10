@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "ms-vscode-remote.remote-ssh",
+    "signageos.signageos-vscode-sops",
+    "timonwong.shellcheck",
+    "foxundermoon.shell-format"
+  ]
+}

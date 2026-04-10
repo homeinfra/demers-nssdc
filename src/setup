@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+#
+# This script is used to configure the nssdc machine
+#
+# Currently tested on Debian 12 (Bookworm)
+
+setup() {
+  if ! setup_dependencies; then
+    logError "Failed to setup dependencies"
+    return 1
+  fi
+
+  return 0
+}
+
+setup_dependencies() {
+  # Make sure the OS is up to date
+  if ! apt-get -y update; then
+    logInfo "Failed to update"
+    return 1
+  fi
+  if ! apt-get -y upgrade; then
+    logInfo "Failed to upgrade"
+    return 1
+  fi
+
+  # Make sure git is installed and configured
+  if ! git_install; then
+    logInfo "Failed to install git"
+    return 1
+  fi
+  if ! git_configure "${DN_ROOT}"; then
+    logInfo "Failed to configure git"
+    return 1
+  fi
+
+  # Install and configure configuration cyphering
+  if ! sops_install; then
+    logInfo "Failed to install sops"
+    return 1
+  fi
+  if ! age_install; then
+    logInfo "Failed to install age"
+    return 1
+  fi
+  if ! age_configure "${AGE_KEY}"; then
+    logInfo "Failed to configure age"
+    return 1
+  fi
+
+  return 0
+}
+
+external_depends() {
+  if ! command -v bpkg &>/dev/null; then
+    # shellcheck disable=SC2312
+    if ! curl -sLo- https://get.bpkg.sh | bash; then
+      echo "Failed to install bpkg"
+      return 1
+    fi
+  fi
+
+  if [[ ! -f "${PREFIX}/lib/slf4.sh" ]]; then
+    if ! bpkg install -g jeremfg/slf4.sh; then
+      echo "Failed to install slf4.sh"
+      return 1
+    fi
+  fi
+
+  if [[ ! -f "${PREFIX}/lib/config.sh" ]]; then
+    if ! bpkg install -g jeremfg/config.sh; then
+      echo "Failed to install config.sh"
+      return 1
+    fi
+  fi
+}
+
+# Constants
+AGE_KEY="homeinfra_demers"
+
+###########################
+###### Startup logic ######
+###########################
+
+# Get directory of this script
+# https://stackoverflow.com/a/246128
+DN_SOURCE=${BASH_SOURCE[0]}
+while [[ -L "${DN_SOURCE}" ]]; do # resolve $DN_SOURCE until the file is no longer a symlink
+  DN_ROOT=$(cd -P "$(dirname "${DN_SOURCE}")" >/dev/null 2>&1 && pwd)
+  DN_SOURCE=$(readlink "${DN_SOURCE}")
+  [[ ${DN_SOURCE} != /* ]] && DN_SOURCE=${DN_ROOT}/${DN_SOURCE} # if $DN_SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DN_ROOT=$(cd -P "$(dirname "${DN_SOURCE}")" >/dev/null 2>&1 && pwd)
+DN_ROOT=$(realpath "${DN_ROOT}/..")
+
+# Determine BPKG's global prefix
+if [[ -z "${PREFIX}" ]]; then
+  if [[ $(id -u || true) -eq 0 ]]; then
+    PREFIX="/usr/local"
+  else
+    PREFIX="${HOME}/.local"
+  fi
+fi
+
+# Install external dependencies
+if ! external_depends; then
+  exit 1
+fi
+
+# Configure logger
+export LOG_CONSOLE=1
+export LOG_LEVEL=0
+
+# shellcheck disable=SC1091
+if ! source "${PREFIX}/lib/slf4.sh"; then
+  echo "Failed to import slf4.sh"
+  exit 1
+elif ! source "${PREFIX}/lib/config.sh"; then
+  logFatal "Failed to import config.sh"
+elif ! config_load "${DN_ROOT}/data/local.env"; then
+  logFatal "Failed to load local.env"
+elif [[ -z "${SETUP_DIR}" ]]; then
+  logFatal "SETUP_DIR is not set"
+elif ! source "${SETUP_DIR}/src/git.sh"; then
+  logFatal "Failed to import git.sh"
+elif ! source "${SETUP_DIR}/src/sops.sh"; then
+  logFatal "Failed to import sops.sh"
+elif ! source "${SETUP_DIR}/src/age.sh"; then
+  logFatal "Failed to import age.sh"
+fi
+
+if [[ -p /dev/stdin ]] && [[ -z ${BASH_SOURCE[0]} ]]; then
+  # This script was piped
+  setup "${@}"
+  exit $?
+elif [[ ${BASH_SOURCE[0]} != "${0}" ]]; then
+  # This script was sourced
+  logFatal "This script cannot be sourced"
+else
+  # This script was executed
+  setup "${@}"
+  exit $?
+fi
