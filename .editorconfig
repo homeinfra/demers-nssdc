@@ -1,4 +1,4 @@
-# Formating rules for shell scripts.
+# Formatting rules for shell scripts.
 # See: shfmt -h
 
 root = true

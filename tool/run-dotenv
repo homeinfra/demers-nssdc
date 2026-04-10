@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
-echo "Running check on: $*"
+echo "Running check on: $@"
 
 if command -v dotenv-linter &>/dev/null; then
-  dotenv-linter "$*" --skip LowercaseKey
+  dotenv-linter "$@" --skip LowercaseKey
   exit $?
 else
-  "${HOME}/.cargo/bin/dotenv-linter" "$*" --skip LowercaseKey
+  "${HOME}/.cargo/bin/dotenv-linter" "$@" --skip LowercaseKey
   exit $?
 fi
