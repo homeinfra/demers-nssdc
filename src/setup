@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+#
+# This script is used to configure the nssdc machine
+#
+# Currently tested on Debian 12 (Bookworm)
+
+setup() {
+  if ! internal_dependencies; then
+    echo "ERROR: Failed to setup internal dependencies"
+    return 1
+  fi
+
+  logInfo "Setup complete!"
+
+  return 0
+}
+
+internal_dependencies() {
+  logInfo "Setting up internal dependencies"
+
+  return 0
+}
+
+external_dependencies() {
+  # Configure logger
+  export LOG_CONSOLE=1
+  export LOG_LEVEL=0
+
+  PREFIX="/usr/local"
+  export PREFIX
+
+  # Install BPKG
+  if ! command -v bpkg >/dev/null 2>&1; then
+    echo "WARN: bpkg is not installed. Please install it first."
+    if ! command -v wget >/dev/null 2>&1; then
+      echo "ERROR: wget is not installed. Please install it first."
+      return 1
+    elif ! wget -qO- "${BPKG_DL_URL}" | sudo bash; then
+      echo "ERROR: Failed to install bpkg"
+      return 1
+    else
+      echo "bpkg installed successfully"
+    fi
+  fi
+
+  # Install slf4.sh
+  if [[ ! -f "${PREFIX}/lib/slf4.sh" ]]; then
+    if ! sudo bpkg install -g jeremfg/slf4.sh; then
+      echo "Failed to install slf4.sh"
+      return 1
+    else
+      echo "slf4.sh installed successfully"
+    fi
+  fi
+
+  # Load the libraries
+  # shellcheck disable=SC1090
+  if ! source "${PREFIX}/lib/slf4.sh"; then
+    echo "Failed to import slf4.sh"
+    exit 1
+  fi
+
+  return 0
+}
+
+# Constants
+BPKG_DL_URL="https://get.bpkg.sh"
+# AGE_KEY="homeinfra_sonia"
+
+###########################
+###### Startup logic ######
+###########################
+
+# Get root directory of the project
+# https://stackoverflow.com/a/246128
+DC_SOURCE=${BASH_SOURCE[0]}
+while [[ -L "${DC_SOURCE}" ]]; do # resolve $DC_SOURCE until the file is no longer a symlink
+  DC_ROOT=$(cd -P "$(dirname "${DC_SOURCE}")" >/dev/null 2>&1 && pwd)
+  DC_SOURCE=$(readlink "${DC_SOURCE}")
+  [[ ${DC_SOURCE} != /* ]] && DC_SOURCE=${DC_ROOT}/${DC_SOURCE} # if $DC_SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DC_ROOT=$(cd -P "$(dirname "${DC_SOURCE}")" >/dev/null 2>&1 && pwd)
+DC_ROOT=$(realpath "${DC_ROOT}/..")
+
+if ! external_dependencies; then
+  echo "ERROR: External dependencies are not met"
+  exit 1
+fi
+
+if [[ -p /dev/stdin ]] && [[ -z ${BASH_SOURCE[0]} ]]; then
+  # This script was piped
+  setup "${@}"
+  exit $?
+elif [[ ${BASH_SOURCE[0]} != "${0}" ]]; then
+  # This script was sourced
+  logFatal "This script cannot be sourced"
+else
+  # This script was executed
+  setup "${@}"
+  exit $?
+fi

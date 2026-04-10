@@ -1,0 +1,6 @@
+# Log files
+.log/
+
+# Locally installed files
+bin/
+.config/
