@@ -148,6 +148,16 @@ external_dependencies() {
     exit 1
   fi
 
+  # Install Semver
+  if ! command -v semver >/dev/null 2>&1; then
+    if ! sudo bpkg install -g jeremfg/semver.sh; then
+      logError "Failed to install semver"
+      return 1
+    else
+      logInfo "semver installed successfully"
+    fi
+  fi
+
   return 0
 }
 
