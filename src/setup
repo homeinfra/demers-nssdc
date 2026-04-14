@@ -3,11 +3,23 @@
 #
 # This script is used to configure the nssdc machine
 #
-# Currently tested on Debian 12 (Bookworm)
+# Currently tested on Zentyal 7.1
 
 setup() {
   if ! internal_dependencies; then
     echo "ERROR: Failed to setup internal dependencies"
+    return 1
+  fi
+
+  # Install necessary packages
+  if ! pkg_install "sshpass"; then
+    logError "Failed to install sshpass"
+    return 1
+  fi
+
+  # Setup AD replication
+  if ! zl_configure_replication "${PDC_USER}" "${PDC_PASSWORD}"; then
+    logError "Failed to configure replication"
     return 1
   fi
 
@@ -16,13 +28,88 @@ setup() {
   return 0
 }
 
+install_encryption() {
+  # Install and configure encryption tools
+  if ! sops_install; then
+    logError "Failed to install sops"
+    return 1
+  fi
+  if ! age_install; then
+    logError "Failed to install age"
+    return 1
+  fi
+
+  if [[ -z "${AGE_KEY}" ]]; then
+    logError "AGE_KEY is not set."
+    return 1
+  elif ! age_configure "${AGE_KEY}"; then
+    logError "Failed to generate age key"
+    return 1
+  fi
+
+  return 0
+}
+
 internal_dependencies() {
   logInfo "Setting up internal dependencies"
+
+  DOWNLOAD_DIR="${DC_ROOT}/.downloads"
+  BIN_DIR="${DC_ROOT}/bin"
+  export DOWNLOAD_DIR
+  export BIN_DIR
+
+  # shellcheck disable=SC1090
+  if ! source "${SETUP_DIR}/src/zentyal.sh"; then
+    logError "Failed to load zentyal.sh"
+    return 1
+  elif ! source "${SETUP_DIR}/src/pkg.sh"; then
+    logError "Failed to load pkg.sh"
+    return 1
+  elif ! source "${SETUP_DIR}/src/sops.sh"; then
+    logError "Failed to load sops.sh"
+    return 1
+  elif ! source "${SETUP_DIR}/src/age.sh"; then
+    logError "Failed to load age.sh"
+    return 1
+  elif ! install_encryption; then
+    logError "Failed to setup encryption tools"
+    return 1
+  fi
+
+  # Install config.sh
+  if [[ ! -f "${PREFIX}/lib/config.sh" ]]; then
+    if ! sudo bpkg install -g jeremfg/config.sh; then
+      logError "Failed to install config.sh"
+      return 1
+    else
+      logInfo "config.sh installed successfully"
+    fi
+  fi
+
+  # Source Configuration
+  # shellcheck disable=SC1090
+  if ! source "${PREFIX}/lib/config.sh"; then
+    logError "Failed to import config.sh"
+    return 1
+  elif ! config_load "${DC_ROOT}/.config/pdc.env"; then
+    logError "Failed to load PDC configuration"
+    return 1
+  elif [[ -z "${PDC_USER}" ]]; then
+    logError "PDC_USER is not set in configuration"
+    return 1
+  elif [[ -z "${PDC_PASSWORD}" ]]; then
+    logError "PDC_PASSWORD is not set in configuration"
+    return 1
+  else
+    logInfo "Internal dependencies loaded successfully"
+  fi
 
   return 0
 }
 
 external_dependencies() {
+  SETUP_DIR="${DC_ROOT}/external/setup"
+
   # Configure logger
   export LOG_CONSOLE=1
   export LOG_LEVEL=0
@@ -64,9 +151,13 @@ external_dependencies() {
   return 0
 }
 
+# Undefined variables
+if [[ -z "${PDC_USER}" ]]; then PDC_USER=""; fi
+if [[ -z "${PDC_PASSWORD}" ]]; then PDC_PASSWORD=""; fi
+
 # Constants
 BPKG_DL_URL="https://get.bpkg.sh"
-# AGE_KEY="homeinfra_sonia"
+AGE_KEY="homeinfra_demers"
 
 ###########################
 ###### Startup logic ######

@@ -4,6 +4,7 @@
     "signageos.signageos-vscode-sops",
     "timonwong.shellcheck",
     "foxundermoon.shell-format",
-    "mhutchie.git-graph"
+    "mhutchie.git-graph",
+    "editorconfig.editorconfig"
   ]
 }

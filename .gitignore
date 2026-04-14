@@ -3,4 +3,5 @@
 
 # Locally installed files
 bin/
-.config/
+.downloads/
+.config/ssh_init.sh

@@ -125,21 +125,21 @@ setup_install() {
     return 1
   fi
 
-  # # Install dotenv-linter (pre-commit)
-  # if ! command -v dotenv-linter &>/dev/null; then
-  #   logInfo "Installing dotenv-linter..."
-  #   wget -qO /tmp/dotenv-linter-install.sh https://raw.githubusercontent.com/dotenv-linter/dotenv-linter/master/install.sh
-  #   if ! sh /tmp/dotenv-linter-install.sh --git "dotenv-linter/dotenv-linter" --tag "v4.0.0" --to "${BIN_DIR}"; then
-  #     logError "Failed to install dotenv-linter"
-  #     rm -f /tmp/dotenv-linter-install.sh
-  #     return 1
-  #   fi
-  #   rm -f /tmp/dotenv-linter-install.sh
-  #   if ! file_symlink "${BIN_DIR}/dotenv-linter" "${SETUP_LOCAL_BIN}/dotenv-linter"; then
-  #     logError "Failed to symlink dotenv-linter to ${SETUP_LOCAL_BIN}"
-  #     return 1
-  #   fi
-  # fi
+  # Install dotenv-linter (pre-commit)
+  if ! command -v dotenv-linter &>/dev/null; then
+    logInfo "Installing dotenv-linter..."
+    wget -qO /tmp/dotenv-linter-install.sh https://raw.githubusercontent.com/dotenv-linter/dotenv-linter/master/install.sh
+    if ! sh /tmp/dotenv-linter-install.sh --git "dotenv-linter/dotenv-linter" -b "${BIN_DIR}" "v3.2.0"; then
+      logError "Failed to install dotenv-linter"
+      rm -f /tmp/dotenv-linter-install.sh
+      return 1
+    fi
+    rm -f /tmp/dotenv-linter-install.sh
+    if ! file_symlink "${BIN_DIR}/dotenv-linter" "${SETUP_LOCAL_BIN}/dotenv-linter"; then
+      logError "Failed to symlink dotenv-linter to ${SETUP_LOCAL_BIN}"
+      return 1
+    fi
+  fi
 
   return 0
 }

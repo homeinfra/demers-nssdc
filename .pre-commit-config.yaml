@@ -60,11 +60,13 @@ repos:
   - repo: local
     hooks:
       - id: my-dotenv-linter  # dotenv
+        args: ["check"]
         name: dotenv-linter
         pass_filenames: true
         language: system
-        entry: tool/run-dotenv
+        entry: dotenv-linter
         files: '^(.*\.env)$'
+        exclude: '^\.config/pdc\.env$'
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0  # Latest version from macisamuele
     hooks:
